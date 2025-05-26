@@ -1,172 +1,145 @@
 """
-Substitution Cipher Library
+Bigram analysis utilities for text processing.
 
-A Python library for encrypting and decrypting messages using substitution ciphers.
-Uses the alphabet: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_' (underscore replaces spaces).
+This module provides functions for extracting bigrams from text,
+creating transition matrices, and calculating text plausibility
+based on bigram frequencies.
 """
 
-def substitute_encrypt(plaintext, key):
+import math
+from collections import defaultdict, Counter
+from typing import List, Dict, Tuple
+
+
+def get_bigrams(text: str) -> List[str]:
     """
-    Encrypt a message using a substitution cipher.
+    Returns a list of all consecutive 2-character sequences (bigrams) in the text.
     
     Args:
-        plaintext (str): The message to encrypt
-        key (str): A 27-character string representing the substitution key.
-                  Must contain each character from 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_' exactly once.
-    
-    Returns:
-        str: The encrypted message
+        text (str): Input text to extract bigrams from
         
-    Raises:
-        ValueError: If the key is invalid (wrong length or missing characters)
-    """
-    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_'
-    
-    # Validate the key
-    if len(key) != 27:
-        raise ValueError("Key must be exactly 27 characters long")
-    
-    if set(key.upper()) != set(alphabet):
-        raise ValueError("Key must contain each character from 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_' exactly once")
-    
-    # Convert key to uppercase for consistency
-    key = key.upper()
-    
-    # Create substitution mapping
-    substitution_map = {}
-    for i, char in enumerate(alphabet):
-        substitution_map[char] = key[i]
-    
-    # Convert plaintext to uppercase and replace spaces with underscores
-    plaintext = plaintext.upper().replace(' ', '_')
-    
-    # Encrypt the message
-    ciphertext = ''
-    for char in plaintext:
-        if char in substitution_map:
-            ciphertext += substitution_map[char]
-        else:
-            # Keep characters not in our alphabet unchanged (numbers, punctuation, etc.)
-            ciphertext += char
-    
-    return ciphertext
-
-
-def substitute_decrypt(ciphertext, key):
-    """
-    Decrypt a message using a substitution cipher.
-    
-    Args:
-        ciphertext (str): The encrypted message to decrypt
-        key (str): A 27-character string representing the substitution key.
-                  Must contain each character from 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_' exactly once.
-    
     Returns:
-        str: The decrypted message (with underscores converted back to spaces)
+        List[str]: List of bigram strings
         
-    Raises:
-        ValueError: If the key is invalid (wrong length or missing characters)
+    Example:
+        >>> get_bigrams("HELLO")
+        ['HE', 'EL', 'LL', 'LO']
     """
-    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_'
+    if len(text) < 2:
+        return []
     
-    # Validate the key
-    if len(key) != 27:
-        raise ValueError("Key must be exactly 27 characters long")
+    bigrams = []
+    for i in range(len(text) - 1):
+        bigrams.append(text[i:i+2])
     
-    if set(key.upper()) != set(alphabet):
-        raise ValueError("Key must contain each character from 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_' exactly once")
-    
-    # Convert key to uppercase for consistency
-    key = key.upper()
-    
-    # Create reverse substitution mapping (from cipher to plain)
-    reverse_map = {}
-    for i, char in enumerate(alphabet):
-        reverse_map[key[i]] = char
-    
-    # Convert ciphertext to uppercase
-    ciphertext = ciphertext.upper()
-    
-    # Decrypt the message
-    plaintext = ''
-    for char in ciphertext:
-        if char in reverse_map:
-            plaintext += reverse_map[char]
-        else:
-            # Keep characters not in our alphabet unchanged (numbers, punctuation, etc.)
-            plaintext += char
-    
-    # Convert underscores back to spaces for readability
-    plaintext = plaintext.replace('_', ' ')
-    
-    return plaintext
+    return bigrams
 
 
-def generate_random_key():
+def transition_matrix(bigrams: List[str]) -> Dict[str, Dict[str, float]]:
     """
-    Generate a random substitution key by shuffling the alphabet.
-    
-    Returns:
-        str: A random 27-character substitution key
-    """
-    import random
-    
-    alphabet = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ_')
-    random.shuffle(alphabet)
-    return ''.join(alphabet)
-
-
-def create_caesar_key(shift=3):
-    """
-    Create a substitution key based on Caesar cipher shift.
+    Creates a relative bigram frequency matrix using the alphabet 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_'.
     
     Args:
-        shift (int): Number of positions to shift (default: 3)
-    
+        bigrams (List[str]): List of bigram strings
+        
     Returns:
-        str: A substitution key representing a Caesar cipher
+        Dict[str, Dict[str, float]]: Nested dictionary representing transition matrix
+                                   where TM[first_char][second_char] = relative_frequency
+                                   
+    Example:
+        >>> bigrams = ['AB', 'BC', 'AB']
+        >>> tm = transition_matrix(bigrams)
+        >>> tm['A']['B']  # Relative frequency of 'B' following 'A'
+        1.0
     """
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ_'
-    shifted_key = ''
     
-    for char in alphabet:
-        # Find the position of the character
-        pos = alphabet.index(char)
-        # Shift by the specified amount (with wraparound)
-        new_pos = (pos + shift) % len(alphabet)
-        shifted_key += alphabet[new_pos]
+    # Initialize transition matrix with zeros
+    TM = {}
+    for char1 in alphabet:
+        TM[char1] = {}
+        for char2 in alphabet:
+            TM[char1][char2] = 0.0
     
-    return shifted_key
+    # Count bigram occurrences
+    bigram_counts = Counter(bigrams)
+    
+    # Count occurrences of each first character
+    first_char_counts = defaultdict(int)
+    for bigram in bigrams:
+        if len(bigram) >= 2:
+            first_char = bigram[0]
+            if first_char in alphabet:
+                first_char_counts[first_char] += 1
+    
+    # Calculate relative frequencies
+    for bigram, count in bigram_counts.items():
+        if len(bigram) >= 2:
+            first_char, second_char = bigram[0], bigram[1]
+            if first_char in alphabet and second_char in alphabet:
+                if first_char_counts[first_char] > 0:
+                    TM[first_char][second_char] = count / first_char_counts[first_char]
+    
+    return TM
 
 
-# Example usage and testing
+def plausibility(text: str, TM_ref: Dict[str, Dict[str, float]]) -> float:
+    """
+    Calculates the log-likelihood of a text using a reference bigram matrix TM_ref.
+    
+    Args:
+        text (str): Input text to analyze
+        TM_ref (Dict[str, Dict[str, float]]): Reference transition matrix
+        
+    Returns:
+        float: Log-likelihood of the text based on bigram probabilities
+               Returns negative infinity if any bigram has zero probability
+               
+    Example:
+        >>> text = "HELLO"
+        >>> log_likelihood = plausibility(text, reference_matrix)
+        >>> print(log_likelihood)
+        -5.298317366548036
+    """
+    if len(text) < 2:
+        return 0.0
+    
+    log_likelihood = 0.0
+    bigrams = get_bigrams(text)
+    
+    for bigram in bigrams:
+        if len(bigram) >= 2:
+            first_char, second_char = bigram[0], bigram[1]
+            
+            # Check if characters are in the reference matrix
+            if first_char in TM_ref and second_char in TM_ref[first_char]:
+                probability = TM_ref[first_char][second_char]
+                
+                if probability > 0:
+                    log_likelihood += math.log(probability)
+                else:
+                    # Zero probability means this bigram is impossible
+                    return float('-inf')
+            else:
+                # Character not in reference matrix
+                return float('-inf')
+    
+    return log_likelihood
+
+
+# Example usage and testing functions (optional)
 if __name__ == "__main__":
-    # Example with a custom key
-    custom_key = "ZYXWVUTSRQPONMLKJIHGFEDCBA_"
-    message = "HELLO WORLD"
+    # Example usage
+    sample_text = "HELLO_WORLD"
     
-    print("Original message:", message)
-    print("Encryption key:", custom_key)
+    # Get bigrams
+    bigrams = get_bigrams(sample_text)
+    print(f"Bigrams from '{sample_text}': {bigrams}")
     
-    # Encrypt
-    encrypted = substitute_encrypt(message, custom_key)
-    print("Encrypted:", encrypted)
+    # Create transition matrix
+    tm = transition_matrix(bigrams)
+    print(f"\nTransition matrix created with {len(tm)} first characters")
     
-    # Decrypt
-    decrypted = substitute_decrypt(encrypted, custom_key)
-    print("Decrypted:", decrypted)
-    
-    print("\n" + "="*50 + "\n")
-    
-    # Example with Caesar cipher key
-    caesar_key = create_caesar_key(13)  # ROT13 variant
-    message2 = "THE QUICK BROWN FOX"
-    
-    print("Caesar key (shift 13):", caesar_key)
-    print("Original message:", message2)
-    
-    encrypted2 = substitute_encrypt(message2, caesar_key)
-    print("Encrypted:", encrypted2)
-    
-    decrypted2 = substitute_decrypt(encrypted2, caesar_key)
-    print("Decrypted:", decrypted2)
+    # Calculate plausibility
+    plaus = plausibility(sample_text, tm)
+    print(f"Plausibility of '{sample_text}': {plaus}")
