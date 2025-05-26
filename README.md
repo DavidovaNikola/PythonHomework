@@ -1,22 +1,3 @@
-# 🔐 Substitution Cipher Library (Python Homework)
-
-This project is a Python library that:
-- Encrypts and decrypts messages using a classic **substitution cipher**.
-- Performs **automatic cryptanalysis** using bigram statistics and the **Metropolis-Hastings algorithm**.
-- Demonstrates functionality in a Jupyter Notebook using real encrypted text samples.
-
----
-
-## 📁 Project Structure
-substitution_cipher/
-├── cipher.py # Encryption and decryption
-├── bigram_utils.py # Bigram generation and matrix
-├── mh_cracker.py # Cipher breaking using M-H algorithm
-├── export_utils.py # Export decrypted results to files
-├── demo.ipynb # Jupyter Notebook demo (to be created)
-
-
----
 
 ## 🚀 How to Push Code to GitHub
 
@@ -29,3 +10,17 @@ git add .
 git commit -m "Initial commit"
 git branch -M main
 git push -u origin main
+
+
+substitution_cipher/
+│
+├── test.ipynb ✅ (notebook)
+├── sypher.py ✅ (šifrování a dešifrování)
+├── bigram_utils.py ✅ (bigramy + plausibility)
+├── mh_cracker.py ✅ (Metropolis-Hastings)
+├── export_utils.py ✅ (uložení výsledků)
+├── data/
+│   └── reference_text.txt ✅ (dlouhý český text)
+├── testovaci_soubory/
+│   └── text_1000_sample_1_ciphertext.txt ✅ (od učitele)
+└── output/ ✅ (automaticky vznikne)
